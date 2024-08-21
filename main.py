@@ -83,9 +83,7 @@ def update_log_file(address: str, time: datetime.datetime, value):
             row += ","
             row += ",".join([str(i) for i in value])  # tuple to str. eg) [12, 14] -> "12,14"
             f.write(row + "\n")
-        
-        # console log
-        print(address, time, value)
+            print(address + "," + row)  # console log
         
         # save previous value and time
         prev_val[address] = value
