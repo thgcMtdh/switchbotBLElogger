@@ -73,15 +73,23 @@ def is_day_different(devaddr, now) -> bool:
 def update_log_file(address: str, time: datetime.datetime, value):
     # write log only when different value has arrived or the first time after the day has changed
     if is_value_different(address, value) or is_day_different(address, time):
+
         dir_path = os.path.join(LOG_DIRECTORY, address.replace(":",""))
-        file_name = time.strftime("%Y%m%d") + ".csv"
+        file_name = time.strftime("%Y%m%d") + ".csv"  # file name is date. eg)20240801.csv
+
         os.makedirs(dir_path, exist_ok=True)  # create directory if not exist
-        with open(os.path.join(dir_path, file_name), "a", encoding="utf-8") as f:
+        with open(os.path.join(dir_path, file_name), "a", encoding="utf-8") as f:  # append to csv file
             row = time.strftime("%H:%M:%S.%f")[:-3]  # milli seconds
             row += ","
             row += ",".join([str(i) for i in value])  # tuple to str. eg) [12, 14] -> "12,14"
             f.write(row + "\n")
-            print(address, row)
+        
+        # console log
+        print(address, time, value)
+        
+        # save previous value and time
+        prev_val[address] = value
+        prev_time[address] = time
 
 
 async def main():
@@ -104,33 +112,17 @@ async def main():
 
                 # Meter device
                 if service_data_bytes[0] == 0x54 or service_data_bytes[0] == 0x77:
-                    # get temperature and humidity from data bytes
+                    # decode temperature and humidity
                     (temp, hum) = decode_meter_temp_and_hum(manufacturer_data_bytes)
-
-                    # write log only when different value has arrived or day has changed
-                    if is_value_different(device.address, (temp, hum)) or is_day_different(device.address, now):
-                        update_log_file(
-                            device.address,
-                            now,
-                            (temp, hum)
-                        )
-                        prev_val[device.address] = (temp, hum)
-                        prev_time[device.address] = now
+                    # save
+                    update_log_file(device.address, now, (temp, hum))
                 
                 # Plug device
                 if service_data_bytes[0] == 0x6a:
-                    # get power from data bytes
+                    # decode power
                     power = decode_plug_power(manufacturer_data_bytes)
-
-                    # write log only when different value has arrived or day has changed
-                    if is_value_different(device.address, (power, )) or is_day_different(device.address, now):
-                        update_log_file(
-                            device.address,
-                            now,
-                            (power, )
-                        )
-                        prev_val[device.address] = (power, )
-                        prev_time[device.address] = now
+                    # save
+                    update_log_file(device.address, now, (power, ))
 
     async with BleakScanner(callback) as scanner:
         await stop_event.wait()
